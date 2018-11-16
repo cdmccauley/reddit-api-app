@@ -1,8 +1,37 @@
 @import url('https://fonts.googleapis.com/css?family=Ubuntu');
 
+* {
+  box-sizing: border-box;
+}
+
 body {
-  margin: 0;
+  margin: .5em;
   font-family: 'Ubuntu', sans-serif;
   color: white;
   background-color: #333;
+}
+
+ul {
+  font-size: 1.25em;
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+li {
+  display: flex;
+  padding-bottom: .5em;
+}
+
+.ups {
+  flex: 0 0 3.5em;
+}
+
+a {
+  color: #ccc;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #fff;
 }
