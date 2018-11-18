@@ -6,140 +6,175 @@ class App extends Component {
   constructor() {
     super();
     this.state = {
-      maxCORSReq: 2,
-      corsReqCount: 0,
-      subreddit: 'politics/new',
+      xhrReqLimit: 4,
+      xhrReqCount: 0,
+      subreddit: 'politics',
       listings: [],
       posts: [],
       titles: 'loading...',
     }
 
-    this.createCORSRequest = this.createCORSRequest.bind(this);
-    this.sendCORSRequest = this.sendCORSRequest.bind(this);
+    this.createReq = this.createReq.bind(this);
+    this.sendReq = this.sendReq.bind(this);
+    this.handleRes = this.handleRes.bind(this);
 
     this.parseListings = this.parseListings.bind(this);
-    this.getNewPosts = this.getNewPosts.bind(this);
+    this.getListItems = this.getListItems.bind(this);
+
   }
 
   componentDidMount() {
-    this.sendCORSRequest();
-    // setInterval(() => this.sendCORSRequest(), 10000);
-    // setInterval(() => this.sendCORSRequest(), 15000);
-    // setInterval(() => this.sendCORSRequest(), 30000);
+    this.sendReq();
+    // this.sendReq('https://www.reddit.com/r/politics/top.json');
+    // this.sendReq('https://www.reddit.com/r/politics/rising.json');
+    // this.sendReq('https://www.reddit.com/r/politics/new.json');
+    // this.sendReq();
+    // setTimeout(() => this.sendReq(), 3000);
+    // setInterval(() => this.sendReq(), 5000);
+    // setInterval(() => this.sendReq(), 10000);
+    // setInterval(() => this.sendReq(), 15000);
+    // setInterval(() => this.sendReq(), 30000);
+    setInterval(() => {
+      this.sendReq();
+      // this.sendReq('https://www.reddit.com/r/politics/rising.json');
+    }, 60000);
   }
 
-  createCORSRequest(method, url) {
-    let createCORSReqXhr = new XMLHttpRequest();
-    if ("withCredentials" in createCORSReqXhr) {
-      createCORSReqXhr.open(method, url, true);
+  createReq(method, url) {
+    let createReqXhr = new XMLHttpRequest();
+    if ("withCredentials" in createReqXhr) {
+      createReqXhr.open(method, url, true);
     } else if (typeof XDomainRequest != "undefined") {
-      // xhr = new XDomainRequest(); // related to IE
-      // xhr.open(method, url);
-      console.log('createCORSRequest function error: no XDomainRequest class defined.');
-      return null; // prevent continuation
+      // TODO: support IE XDomainRequest class
+      // createReqXhr = new XDomainRequest();
+      // createReqXhr.open(method, url);
+      console.log('createReq function error: XDomainRequest currently unsupported.');
+      createReqXhr = null;
     } else {
-      createCORSReqXhr = null;
+      console.log('createReq function error: CORS not supported by client.');
+      createReqXhr = null;
     }
-    return createCORSReqXhr;
+    return createReqXhr;
   }
 
-  sendCORSRequest(url) {
-    let sendCORSReqUrl, sendCORSReqXhr;
-    let sendCORSReqContext = this;
-    url ? sendCORSReqUrl = url : sendCORSReqUrl = `https://reddit.com/r/${ this.state.subreddit }.json`;
-    sendCORSReqXhr = this.createCORSRequest('GET', sendCORSReqUrl);
-    if (!sendCORSReqXhr) {
-      console.log('sendCORSRequest function error: CORS not supported.');
-      return;
-    } else {
-      sendCORSReqXhr.responseType = "json";
-    }
-    sendCORSReqXhr.onload = () => {
-      console.log(sendCORSReqXhr.response); // DEBUG: log response from reddit
-      sendCORSReqContext.setState({
-        corsReqCount: sendCORSReqContext.state.corsReqCount + 1,
-        listings: [...sendCORSReqContext.state.listings, sendCORSReqXhr.response]
-      }, () => {
-        if (sendCORSReqContext.state.corsReqCount < sendCORSReqContext.state.maxCORSReq) {
-          sendCORSReqContext.sendCORSRequest(`https://reddit.com/r/${ this.state.subreddit }.json?after=${ sendCORSReqContext.state.listings[sendCORSReqContext.state.corsReqCount - 1].data.after }`);
-        } else {
-          sendCORSReqContext.setState({
-            corsReqCount: 0
-          }, sendCORSReqContext.parseListings());
-        };
-      });
-    }
-    sendCORSReqXhr.onerror = (error) => {
-      console.log('sendCORSRequest function error: XHR error');
-      console.log(error);
-    }
-    sendCORSReqXhr.send();
+  sendReq(url) {
+    let sendReqUrl, sendReqXhr;
+    let sendReqContext = this;
+    url ? sendReqUrl = url : sendReqUrl = `https://reddit.com/r/${ this.state.subreddit }.json`;
+    sendReqXhr = this.createReq('GET', sendReqUrl);
+    if (sendReqXhr) {
+      sendReqXhr.responseType = "json";
+      sendReqXhr.onload = () => {
+        sendReqContext.handleRes(sendReqXhr.response);
+      }
+      sendReqXhr.onerror = (error) => {
+        console.log('sendReq function error: XHR error\n', error);
+      }
+      sendReqXhr.send();
+    };
   }
 
-  /*
-
-  don't want to keep spending so much on processing objects
-  restructure objects to enable using ids to check for dups
-  process:
-  call api, iterate through to find children that aren't in state
-  send children to be added to state if not in current set
-  then check differences between ups, if different overwrite ups
-
-  getListings, getNewPosts, getUpdatedUps, setState
-
-  */
-  getNewPosts(listings) {
-    
+  handleRes(res) {
+    console.log('server response:\n', res); // DEBUG: log response from reddit
+    this.setState((state, props) => {
+      return {
+        xhrReqCount: state.xhrReqCount + 1,
+        listings: [...state.listings, res]
+      }
+    }, () => {
+      if (this.state.xhrReqCount < this.state.xhrReqLimit && this.state.listings[this.state.xhrReqCount - 1].data.after) {
+        this.sendReq(`https://reddit.com/r/${ this.state.subreddit }.json?after=${ this.state.listings[this.state.xhrReqCount - 1].data.after }`);
+      } else {
+        this.setState((state, props) => {
+          return {
+            xhrReqCount: 0
+          }
+        }, () => this.parseListings());
+      };
+    });
   }
 
   parseListings() {
-    let tempPosts = [];
-    Object.values(this.state.listings).forEach((listing) => {
-      Object.values(listing.data.children).forEach((child) => {
-        let post = {
-          id: child.data.id,
-          name: child.data.name,
-          created: child.data.created_utc,
-          title: child.data.title,
-          author: child.data.author,
-          comments: child.data.permalink,
-          ups: child.data.ups,
-          score: child.data.score,
-          domain: child.data.domain,
-          url: child.data.url,
-          thumb: child.data.thumbnail,
-          thumbHeight: child.data.thumbnail_height,
-          thumbWidth: child.data.thumbnail_width,
-        }
-        tempPosts.push(post);
+    let combinedArr = this.state.posts;
+    let tempPostsArr = [];
+    if (Object.keys(this.state.posts).length > 0) {
+      Object.values(this.state.listings).forEach((listing) => {
+        Object.values(listing.data.children).forEach((child) => {
+          if (Object.keys(this.state.posts).includes(child.data.id)) {
+            if (combinedArr[child.data.id].ups !== child.data.ups) {
+              combinedArr[child.data.id].ups = child.data.ups;
+              combinedArr[child.data.id].score = child.data.score;
+            }
+          } else {
+            tempPostsArr[child.data.id] = {
+              id: child.data.id,
+              name: child.data.name,
+              created: child.data.created_utc,
+              title: child.data.title,
+              author: child.data.author,
+              comments: child.data.permalink,
+              ups: child.data.ups,
+              score: child.data.score,
+              domain: child.data.domain,
+              url: child.data.url,
+              thumb: child.data.thumbnail,
+              thumbHeight: child.data.thumbnail_height,
+              thumbWidth: child.data.thumbnail_width,
+            };
+          }
+        })
       })
+    } else {
+      Object.values(this.state.listings).forEach((listing) => {
+        Object.values(listing.data.children).forEach((child) => {
+          tempPostsArr[child.data.id] = {
+            id: child.data.id,
+            name: child.data.name,
+            created: child.data.created_utc * 1000,
+            title: child.data.title,
+            author: child.data.author,
+            comments: child.data.permalink,
+            ups: child.data.ups,
+            score: child.data.score,
+            domain: child.data.domain,
+            url: child.data.url,
+            thumb: child.data.thumbnail,
+            thumbHeight: child.data.thumbnail_height,
+            thumbWidth: child.data.thumbnail_width,
+          };
+        });
+      });
+    };
+    Object.keys(tempPostsArr).forEach((key) => {
+      combinedArr[key] = tempPostsArr[key];
     });
-    tempPosts.sort((a, b) => { return b.ups - a.ups });
+    this.setState((state, props) => {
+      return {
+        listings: [],
+        posts: combinedArr,
+      }
+    }, () => this.getListItems());
+  }
 
-    // // DEBUG: testing area
-    // if (Object.keys(this.state.posts).length > 0) {
-    //   Object.values(this.state.listings).forEach((listing) => {
-    //     Object.values(listing.data.children).forEach((child) => {
-    //       Object.values(this.state.posts).forEach((post) => {
-    //         if (!Object.values(post).includes(child.data.id)) {
-    //           // unknown post detected
-    //           // triggers 2450 times ??
-    //           // have 50 posts when this happens
-    //           // iterating over every prop of object, recognizes 50 of them...
-    //           // too much iterating happening here
-    //           console.log('unknown post');
-    //         };
-    //       });
-    //     });
-    //   });
-    // };
-    // // DEBUG: end testing area
-
-    this.setState({
-      listings: [],
-      posts: tempPosts,
-      titles: tempPosts.map((post) => <li key={ post.id } ><span className='ups'>{ post.ups }</span><a href={ post.url }>{ post.title }</a></li>)
-    }, () => console.log(this.state));
+  getListItems() {
+    let now = new Date().getTime();
+    let listItems = Object.values(this.state.posts).map((post) => (
+      <li key={ post.id } >
+        <span className='ups'>
+          { post.ups }
+        </span>
+        <span className='ages'>
+          { Math.round(((Math.round(post.ups / (Math.round(((now - post.created) / 3600000) * 100) / 100))) / 60) * 100) / 100 }
+        </span>
+        <a href={ `https://www.reddit.com${post.comments}` } target='_blank' rel='noopener noreferrer'>
+          { post.title }
+        </a>
+      </li>
+    ));
+    listItems.sort((a, b) => { return b.props.children[1].props.children - a.props.children[1].props.children });
+    this.setState((state, props) => {
+      return { titles: listItems }
+    }, () => console.log('state:\n', this.state, `\nstate.posts.length: ${Object.keys(this.state.posts).length}`));
   }
 
   render() {
