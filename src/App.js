@@ -19,12 +19,12 @@ class App extends Component {
     // this.createReq = this.createReq.bind(this);
     // this.sendReq = this.sendReq.bind(this);
 
+    this.reqData = this.reqData.bind(this);
     this.handleRes = this.handleRes.bind(this);
     this.parseListings = this.parseListings.bind(this);
     this.getListItems = this.getListItems.bind(this);
 
-    this.reqData = this.reqData.bind(this);
-
+    this.sortListItems = this.sortListItems.bind(this);
     this.filterListItems = this.filterListItems.bind(this);
 
     this.componentDidMount = this.componentDidMount.bind(this);
@@ -97,7 +97,7 @@ class App extends Component {
 
   // TODO: remove max reqs and just poll for 100 instead of replaying
   handleRes(res) {
-    // console.log('server response:\n', res); // DEBUG: log response from reddit
+    console.log('server response:\n', res); // DEBUG: log response from reddit
     this.setState((state, props) => {
       return {
         fetchCount: state.fetchCount + 1,
@@ -134,12 +134,13 @@ class App extends Component {
             created: child.data.created_utc * 1000,
             title: child.data.title,
             author: child.data.author,
+            subreddit: child.data.subreddit_name_prefixed,
             comments: child.data.permalink,
             ups: child.data.ups,
             score: child.data.score,
             domain: child.data.domain,
             url: child.data.url,
-            thumb: child.data.thumbnail,
+            thumb: child.data.thumbnail.substring(0, 4) !== 'http' ? `https://via.placeholder.com/140x90/333/FFF/?text=${ child.data.thumbnail }` : child.data.thumbnail,
             thumbHeight: child.data.thumbnail_height,
             thumbWidth: child.data.thumbnail_width,
           };
@@ -209,34 +210,55 @@ class App extends Component {
     let now = new Date().getTime();
     let listItems = Object.values(this.state.posts).map((post) => (
       <li key={ post.id } >
-        <span className='row'>
-          <span className='ups'>
-            { post.ups }
-          </span>
-          <span className='ages'>
-            { (Math.round(((now - post.created) / 3600000) * 100) / 100) }
-          </span>
-          <span className='avgs'>
-            { Math.round(((Math.round(post.ups / (Math.round(((now - post.created) / 3600000) * 100) / 100))) / 60) * 100) / 100 }
-          </span>
-        </span>
-        <a href={ `https://old.reddit.com${post.comments}` } target='_blank' rel='noopener noreferrer'>
-          { post.title }
-        </a>
-        <img src={ post.thumb } style={{ width: post.thumbWidth, height: post.thumbHeight }} alt={ post.title }/>
+        <div className="title">
+          <a href={ `https://old.reddit.com${post.comments}` } target='_blank' rel='noopener noreferrer'>
+            { post.title }
+          </a>
+        </div>
+        <div className='details'>
+          <div className='stats'>
+            <span className='ups'>
+              <p>ups: { post.ups }</p>
+            </span>
+            <span className='ages'>
+              <p>age: { (Math.round(((now - post.created) / 3600000) * 100) / 100) }</p>
+            </span>
+            <span className='avgs'>
+              <p>{ Math.round(((Math.round(post.ups / (Math.round(((now - post.created) / 3600000) * 100) / 100))) / 60) * 100) / 100 } ups/min</p>
+            </span>
+          </div>
+          <a href={ post.url } target='_blank' rel='noopener noreferrer'>
+            <img src={ post.thumb } alt={ post.title }/>
+          </a>
+        </div>
+        { this.state.subreddit.substring() === 'all' ? <div className='source' style={{ justifyContent: 'space-between' }}><small>{ post.subreddit}</small><small>{ post.domain }</small></div> : <div className='source' style={{ justifyContent: 'flex-end' }}><small>{ post.domain }</small></div>}
       </li>
     ));
-    listItems.sort((a, b) => { return b.props.children[0].props.children[2].props.children - a.props.children[0].props.children[2].props.children });
+    // listItems.sort((a, b) => { return b.props.children[0].props.children[2].props.children - a.props.children[0].props.children[2].props.children });
+    listItems = this.sortListItems(listItems);
+    // console.log(listItems[0].props.children[1].props.children[0].props.children[2].props.children.props.children[0]);
     this.setState((state, props) => {
-      return { allTitles: listItems }
+      return { 
+        allTitles: listItems,
+        displayTitles: listItems
+      }
     }, () => {
       // console.log('post response state:\n', this.state, `\nstate.posts.length: ${Object.keys(this.state.posts).length}`); // DEBUG: log state
       this.filterListItems();
     });
   }
 
+  sortListItems(list) {
+    // return list.sort((a, b) => { return b.props.children[0].props.children[2].props.children - a.props.children[0].props.children[2].props.children });
+    // return list.sort((a, b) => { return b.props.children[2].props.children - a.props.children[2].props.children });
+    return list.sort((a, b) => { return b.props.children[1].props.children[0].props.children[2].props.children.props.children[0] - a.props.children[1].props.children[0].props.children[2].props.children.props.children[0]})
+  }
+
   filterListItems() {
-    let filteredList = this.state.allTitles.filter((title) => { return title.props.children[0].props.children[1].props.children < this.state.maxAge });
+    // let filteredList = this.state.allTitles.filter((title) => { return title.props.children[0].props.children[1].props.children < this.state.maxAge });
+    // let filteredList = this.state.allTitles.filter((title) => { return title.props.children[1].props.children < this.state.maxAge });
+    let filteredList = this.state.allTitles.filter((title) => { return title.props.children[1].props.children[0].props.children[1].props.children.props.children[1] < this.state.maxAge });
+    // console.log(this.state.allTitles[0].props.children[1].props.children[0].props.children[1].props.children.props.children[1]);
     this.setState((state, props) => { return { displayTitles: filteredList }});
     // this.setState((state, props) => { return { displayTitles: filteredList }}, () => console.log('post filter state:\n', this.state, `\nstate.displayTitles.length: ${ this.state.displayTitles.length }`));
   }
@@ -245,7 +267,7 @@ class App extends Component {
     return (
       <React.Fragment>
         <ul>
-          <li id='head'><span className='row'><span className='ups'>ups</span><span className='ages'>age</span><span className='avgs'>/min</span></span><span>title</span></li>
+          {/* <li id='head'><span className='ups'>ups</span><span className='ages'>age</span><span className='avgs'>/min</span><span>title</span></li> */}
           { this.state.displayTitles }
         </ul>
       </React.Fragment>
