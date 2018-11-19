@@ -6,88 +6,111 @@ class App extends Component {
   constructor() {
     super();
     this.state = {
-      xhrReqLimit: 4,
-      xhrReqCount: 0,
+      fetchLimit: 2,
+      fetchCount: 0,
+      maxAge: 3,
       subreddit: 'politics',
       listings: [],
       posts: [],
-      titles: 'loading...',
+      allTitles: [],
+      displayTitles: 'loading...',
     }
 
-    this.createReq = this.createReq.bind(this);
-    this.sendReq = this.sendReq.bind(this);
-    this.handleRes = this.handleRes.bind(this);
+    // this.createReq = this.createReq.bind(this);
+    // this.sendReq = this.sendReq.bind(this);
 
+    this.handleRes = this.handleRes.bind(this);
     this.parseListings = this.parseListings.bind(this);
     this.getListItems = this.getListItems.bind(this);
 
+    this.reqData = this.reqData.bind(this);
+
+    this.filterListItems = this.filterListItems.bind(this);
+
+    this.componentDidMount = this.componentDidMount.bind(this);
   }
 
   componentDidMount() {
-    this.sendReq();
-    // this.sendReq('https://www.reddit.com/r/politics/top.json');
-    // this.sendReq('https://www.reddit.com/r/politics/rising.json');
-    // this.sendReq('https://www.reddit.com/r/politics/new.json');
+    // let timeout = 3000;
+    let interval = 60000;
+
+    this.reqData();
     // this.sendReq();
-    // setTimeout(() => this.sendReq(), 3000);
-    // setInterval(() => this.sendReq(), 5000);
-    // setInterval(() => this.sendReq(), 10000);
-    // setInterval(() => this.sendReq(), 15000);
-    // setInterval(() => this.sendReq(), 30000);
-    setInterval(() => {
-      this.sendReq();
-      // this.sendReq('https://www.reddit.com/r/politics/rising.json');
-    }, 60000);
+    
+    // setTimeout(() => this.reqData(), timeout);
+    // setTimeout(() => this.sendReq(), timeout);
+    
+    setInterval(() => this.reqData(), interval);
+    // setInterval(() => this.sendReq(), interval);
   }
 
-  createReq(method, url) {
-    let createReqXhr = new XMLHttpRequest();
-    if ("withCredentials" in createReqXhr) {
-      createReqXhr.open(method, url, true);
-    } else if (typeof XDomainRequest != "undefined") {
-      // TODO: support IE XDomainRequest class
-      // createReqXhr = new XDomainRequest();
-      // createReqXhr.open(method, url);
-      console.log('createReq function error: XDomainRequest currently unsupported.');
-      createReqXhr = null;
-    } else {
-      console.log('createReq function error: CORS not supported by client.');
-      createReqXhr = null;
-    }
-    return createReqXhr;
+  reqData(url) {
+    let fetchUrl, req;
+    url ? fetchUrl = url : fetchUrl = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
+    // console.log('fetchUrl:\n', fetchUrl); // DEBUG: log req url
+    req = new Request(fetchUrl);
+    fetch(req)
+    .then((fulfilled) => { return fulfilled.json() }, (rejected) => {
+      console.log('fetch rejected:\n', rejected);
+      this.setState((state, props) => { return { displayTitles: 'error: fetch rejected by browser.'}})
+    })
+    .then((res) => { res ? this.handleRes(res) : console.log('falsy response:\n', res) })
+    .catch((err) => console.log('fetch error:\n', err));
   }
 
-  sendReq(url) {
-    let sendReqUrl, sendReqXhr;
-    let sendReqContext = this;
-    url ? sendReqUrl = url : sendReqUrl = `https://reddit.com/r/${ this.state.subreddit }.json`;
-    sendReqXhr = this.createReq('GET', sendReqUrl);
-    if (sendReqXhr) {
-      sendReqXhr.responseType = "json";
-      sendReqXhr.onload = () => {
-        sendReqContext.handleRes(sendReqXhr.response);
-      }
-      sendReqXhr.onerror = (error) => {
-        console.log('sendReq function error: XHR error\n', error);
-      }
-      sendReqXhr.send();
-    };
-  }
+  // createReq(method, url) {
+  //   let createReqXhr = new XMLHttpRequest();
+  //   if ("withCredentials" in createReqXhr) {
+  //     createReqXhr.open(method, url, true);
+  //   } else if (typeof XDomainRequest != "undefined") {
+  //     // TODO: support IE XDomainRequest class
+  //     // createReqXhr = new XDomainRequest();
+  //     // createReqXhr.open(method, url);
+  //     console.log('createReq function error: XDomainRequest currently unsupported.');
+  //     this.setState((state, props) => { return { displayTitles: 'createReq function error: XDomainRequest currently unsupported.' }});
+  //     createReqXhr = null;
+  //   } else {
+  //     console.log('createReq function error: CORS not supported by client.');
+  //     this.setState((state, props) => { return { displayTitles: 'createReq function error: CORS not supported by client.' }});
+  //     createReqXhr = null;
+  //   }
+  //   return createReqXhr;
+  // }
 
+  // sendReq(url) {
+  //   let sendReqUrl, sendReqXhr;
+  //   let sendReqContext = this;
+  //   url ? sendReqUrl = url : sendReqUrl = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
+  //   sendReqXhr = this.createReq('GET', sendReqUrl);
+  //   if (sendReqXhr) {
+  //     sendReqXhr.responseType = "json";
+  //     sendReqXhr.onload = () => {
+  //       sendReqContext.handleRes(sendReqXhr.response);
+  //     }
+  //     sendReqXhr.onerror = (error) => {
+  //       console.log('sendReq function error: XHR error\n', error);
+  //       this.setState((state, props) => { return { displayTitles: 'sendReq function error: XHR error: ' + JSON.stringify(error, ['message', 'arguments', 'type', 'name'])}});
+  //     }
+  //     sendReqXhr.send();
+  //   };
+  // }
+
+  // TODO: remove max reqs and just poll for 100 instead of replaying
   handleRes(res) {
-    console.log('server response:\n', res); // DEBUG: log response from reddit
+    // console.log('server response:\n', res); // DEBUG: log response from reddit
     this.setState((state, props) => {
       return {
-        xhrReqCount: state.xhrReqCount + 1,
+        fetchCount: state.fetchCount + 1,
         listings: [...state.listings, res]
       }
     }, () => {
-      if (this.state.xhrReqCount < this.state.xhrReqLimit && this.state.listings[this.state.xhrReqCount - 1].data.after) {
-        this.sendReq(`https://reddit.com/r/${ this.state.subreddit }.json?after=${ this.state.listings[this.state.xhrReqCount - 1].data.after }`);
+      if (this.state.fetchCount < this.state.fetchLimit && this.state.listings[+this.state.fetchCount - 1].data.after) {
+        // this.sendReq(`https://old.reddit.com/r/${ this.state.subreddit }.json?after=${ this.state.listings[this.state.fetchCount - 1].data.after }`);
+        this.reqData(`https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100&after=${ this.state.listings[this.state.fetchCount - 1].data.after }`);
       } else {
         this.setState((state, props) => {
           return {
-            xhrReqCount: 0
+            fetchCount: 0
           }
         }, () => this.parseListings());
       };
@@ -97,36 +120,14 @@ class App extends Component {
   parseListings() {
     let combinedArr = this.state.posts;
     let tempPostsArr = [];
-    if (Object.keys(this.state.posts).length > 0) {
-      Object.values(this.state.listings).forEach((listing) => {
-        Object.values(listing.data.children).forEach((child) => {
-          if (Object.keys(this.state.posts).includes(child.data.id)) {
-            if (combinedArr[child.data.id].ups !== child.data.ups) {
-              combinedArr[child.data.id].ups = child.data.ups;
-              combinedArr[child.data.id].score = child.data.score;
-            }
-          } else {
-            tempPostsArr[child.data.id] = {
-              id: child.data.id,
-              name: child.data.name,
-              created: child.data.created_utc,
-              title: child.data.title,
-              author: child.data.author,
-              comments: child.data.permalink,
-              ups: child.data.ups,
-              score: child.data.score,
-              domain: child.data.domain,
-              url: child.data.url,
-              thumb: child.data.thumbnail,
-              thumbHeight: child.data.thumbnail_height,
-              thumbWidth: child.data.thumbnail_width,
-            };
+    Object.values(this.state.listings).forEach((listing) => {
+      Object.values(listing.data.children).forEach((child) => {
+        if (Object.keys(this.state.posts).includes(child.data.id)) {
+          if (combinedArr[child.data.id].ups !== child.data.ups) {
+            combinedArr[child.data.id].ups = child.data.ups;
+            combinedArr[child.data.id].score = child.data.score;
           }
-        })
-      })
-    } else {
-      Object.values(this.state.listings).forEach((listing) => {
-        Object.values(listing.data.children).forEach((child) => {
+        } else {
           tempPostsArr[child.data.id] = {
             id: child.data.id,
             name: child.data.name,
@@ -142,9 +143,57 @@ class App extends Component {
             thumbHeight: child.data.thumbnail_height,
             thumbWidth: child.data.thumbnail_width,
           };
-        });
-      });
-    };
+        }
+      })
+    });
+    // if (Object.keys(this.state.posts).length > 0) {
+    //   Object.values(this.state.listings).forEach((listing) => {
+    //     Object.values(listing.data.children).forEach((child) => {
+    //       if (Object.keys(this.state.posts).includes(child.data.id)) {
+    //         if (combinedArr[child.data.id].ups !== child.data.ups) {
+    //           combinedArr[child.data.id].ups = child.data.ups;
+    //           combinedArr[child.data.id].score = child.data.score;
+    //         }
+    //       } else {
+    //         tempPostsArr[child.data.id] = {
+    //           id: child.data.id,
+    //           name: child.data.name,
+    //           created: child.data.created_utc,
+    //           title: child.data.title,
+    //           author: child.data.author,
+    //           comments: child.data.permalink,
+    //           ups: child.data.ups,
+    //           score: child.data.score,
+    //           domain: child.data.domain,
+    //           url: child.data.url,
+    //           thumb: child.data.thumbnail,
+    //           thumbHeight: child.data.thumbnail_height,
+    //           thumbWidth: child.data.thumbnail_width,
+    //         };
+    //       }
+    //     })
+    //   })
+    // } else {
+    //   Object.values(this.state.listings).forEach((listing) => {
+    //     Object.values(listing.data.children).forEach((child) => {
+    //       tempPostsArr[child.data.id] = {
+    //         id: child.data.id,
+    //         name: child.data.name,
+    //         created: child.data.created_utc * 1000,
+    //         title: child.data.title,
+    //         author: child.data.author,
+    //         comments: child.data.permalink,
+    //         ups: child.data.ups,
+    //         score: child.data.score,
+    //         domain: child.data.domain,
+    //         url: child.data.url,
+    //         thumb: child.data.thumbnail,
+    //         thumbHeight: child.data.thumbnail_height,
+    //         thumbWidth: child.data.thumbnail_width,
+    //       };
+    //     });
+    //   });
+    // };
     Object.keys(tempPostsArr).forEach((key) => {
       combinedArr[key] = tempPostsArr[key];
     });
@@ -160,28 +209,44 @@ class App extends Component {
     let now = new Date().getTime();
     let listItems = Object.values(this.state.posts).map((post) => (
       <li key={ post.id } >
-        <span className='ups'>
-          { post.ups }
+        <span className='row'>
+          <span className='ups'>
+            { post.ups }
+          </span>
+          <span className='ages'>
+            { (Math.round(((now - post.created) / 3600000) * 100) / 100) }
+          </span>
+          <span className='avgs'>
+            { Math.round(((Math.round(post.ups / (Math.round(((now - post.created) / 3600000) * 100) / 100))) / 60) * 100) / 100 }
+          </span>
         </span>
-        <span className='ages'>
-          { Math.round(((Math.round(post.ups / (Math.round(((now - post.created) / 3600000) * 100) / 100))) / 60) * 100) / 100 }
-        </span>
-        <a href={ `https://www.reddit.com${post.comments}` } target='_blank' rel='noopener noreferrer'>
+        <a href={ `https://old.reddit.com${post.comments}` } target='_blank' rel='noopener noreferrer'>
           { post.title }
         </a>
+        <img src={ post.thumb } style={{ width: post.thumbWidth, height: post.thumbHeight }} alt={ post.title }/>
       </li>
     ));
-    listItems.sort((a, b) => { return b.props.children[1].props.children - a.props.children[1].props.children });
+    listItems.sort((a, b) => { return b.props.children[0].props.children[2].props.children - a.props.children[0].props.children[2].props.children });
     this.setState((state, props) => {
-      return { titles: listItems }
-    }, () => console.log('state:\n', this.state, `\nstate.posts.length: ${Object.keys(this.state.posts).length}`));
+      return { allTitles: listItems }
+    }, () => {
+      // console.log('post response state:\n', this.state, `\nstate.posts.length: ${Object.keys(this.state.posts).length}`); // DEBUG: log state
+      this.filterListItems();
+    });
+  }
+
+  filterListItems() {
+    let filteredList = this.state.allTitles.filter((title) => { return title.props.children[0].props.children[1].props.children < this.state.maxAge });
+    this.setState((state, props) => { return { displayTitles: filteredList }});
+    // this.setState((state, props) => { return { displayTitles: filteredList }}, () => console.log('post filter state:\n', this.state, `\nstate.displayTitles.length: ${ this.state.displayTitles.length }`));
   }
 
   render() {
     return (
       <React.Fragment>
         <ul>
-          { this.state.titles }
+          <li id='head'><span className='row'><span className='ups'>ups</span><span className='ages'>age</span><span className='avgs'>/min</span></span><span>title</span></li>
+          { this.state.displayTitles }
         </ul>
       </React.Fragment>
     );
