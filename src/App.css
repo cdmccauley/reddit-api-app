@@ -29,6 +29,28 @@ li {
   box-shadow: 2px 2px 2px 0 #111;
 }
 
+#control-header {
+  background-color: #111;
+  padding: .25em .5em .25em .5em;
+  border-radius: .25em .25em 0em 0em;
+  box-shadow: 0 1px 2px 0 #000;
+  font-size: 1.5em;
+}
+
+.ups {
+  color: #ff4500;
+}
+
+#controls {
+  display: flex;
+  padding: .5em .5em 0 .5em;
+  justify-content: space-around;
+}
+
+#controls p {
+  display: inline-flex;
+}
+
 .title {
   text-align: justify;
   background-color: #111;
@@ -69,4 +91,12 @@ img {
 .source {
   display: flex;
   padding: .25em .5em 0 .5em;
+}
+
+@media screen and (max-width: 601px) {
+
+  #controls {
+    flex-direction: column;
+  }
+
 }
