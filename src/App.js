@@ -8,7 +8,7 @@ class App extends Component {
     this.state = {
       fetchLimit: 2,
       fetchCount: 0,
-      maxAge: 3,
+      maxAge: 2,
       subreddit: 'politics',
       listings: [],
       posts: [],
@@ -53,7 +53,7 @@ class App extends Component {
   }
 
   handleRes(res) {
-    console.log('server response:\n', res); // DEBUG: log response from reddit
+    // console.log('server response:\n', res); // DEBUG: log response from reddit
     if (res.error) {
       this.setState((state, props) => { return { displayTitles: `${res.error}: ${res.message}` }});
     } else {
@@ -177,8 +177,9 @@ class App extends Component {
   }
 
   handleSubmit(event) {
-    if (event.type === 'click') {
-      let val = document.getElementById('sub-input').value;
+    event.preventDefault();
+    if (event.type === 'submit') {
+      let val = document.getElementById('sub-value').value;
       if (val.length > 0) {
         clearInterval(this.state.pollRef);
         this.setState((state, props) => { 
@@ -201,25 +202,29 @@ class App extends Component {
     }
   }
 
+  // 🔴 <- for copy paste purposes
   render() {
     return (
       <React.Fragment>
         <ul>
           <li>
-            <div id='control-header'><span className='ups'>ups</span> rate <span style={{ color: 'red' }}>live</span></div>
+            <div id='control-header'><span><span className='ups'>ups</span> rate <span style={{ color: 'red' }}>live</span></span><span id='live-indicator' role='img' aria-label='live indicator'>🔴</span></div>
             <div id='controls'>
               <div id='sub-controls'>
-                <p style={{flexShrink: '0'}}>subreddit: r/</p>
-                <input style={{flexGrow: '0'}} type='text' id='sub-input' placeholder={ this.state.subreddit }></input>
-                <input style={{flexGrow: '0'}} type='submit' onClick={ this.handleSubmit } />
+              <form onSubmit={ this.handleSubmit }>
+                <label style={{flexShrink: '0'}} htmlFor='sub-value'><span id='full-sub-label'>subreddit: r/</span><span id='partial-sub-label'>r/</span></label>
+                <input style={{flexGrow: '0'}} type='text' id='sub-value' placeholder={ this.state.subreddit }></input>
+                <input style={{flexGrow: '0'}} type='submit' id='sub-submit' value='submit' />
+              </form>
               </div>
               <div id='age-controls'>
-                <p style={{flexShrink: '0'}}>max age:</p>
-                <select onInput={ this.handleSubmit }>
-                  <option value='3'>3</option>
-                  <option value='6'>6</option>
-                  <option value='12'>12</option>
-                  <option value='24'>24</option>
+                <label style={{flexShrink: '0'}}>max age:</label>
+                <select id='age-select' onInput={ this.handleSubmit }>
+                  <option value='2'>2 hours</option>
+                  <option value='3'>3 hours</option>
+                  <option value='6'>6 hours</option>
+                  <option value='12'>12 hours</option>
+                  <option value='24'>24 hours</option>
                 </select>
               </div>
             </div>

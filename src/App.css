@@ -4,6 +4,16 @@
   box-sizing: border-box;
 }
 
+::-webkit-scrollbar {
+  width: 18px;
+  background-color: #222;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #111;
+  border-radius: 6px;
+}
+
 body {
   margin: .5em;
   font-family: 'Ubuntu', sans-serif;
@@ -33,17 +43,32 @@ li {
   background-color: #111;
   padding: .25em .5em .25em .5em;
   border-radius: .25em .25em 0em 0em;
-  box-shadow: 0 1px 2px 0 #000;
   font-size: 1.5em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .ups {
   color: #ff4500;
 }
 
+@keyframes blink {
+  from { opacity: 1; }
+  to { opacity: .1; }
+}
+
+#live-indicator {
+  font-size: .625em;
+  animation-name: blink;
+  animation-duration: 2.5s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
 #controls {
   display: flex;
-  padding: .5em .5em 0 .5em;
+  padding: 1em .5em .5em .5em;
   justify-content: space-around;
 }
 
@@ -51,12 +76,53 @@ li {
   display: inline-flex;
 }
 
+#full-sub-label {
+  display: inline;
+}
+
+#partial-sub-label {
+  display: none;
+}
+
+#sub-value {
+  width: 150px;
+  color: white;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 1em;
+  background-color: #111;
+  border-style: none;
+  border-radius: .25em 0 0 .25em;
+  padding: .25em 0 .3em .4em;
+  margin-left: .25em;
+}
+
+#sub-submit {
+  color: white;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 1em;
+  background-color: #333;
+  border-style: none;
+  border-radius: 0 .25em .25em 0;
+  padding: .25em .4em .3em .4em;
+  cursor: pointer;
+}
+
+#age-select {
+  color: white;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 1em;
+  background-color: #333;
+  border-style: none;
+  border-radius: .25em;
+  padding: .25em 0 .3em .2em;
+  margin-left: .25em;
+}
+
 .title {
   text-align: justify;
   background-color: #111;
-  padding: .25em .5em .25em .5em;
+  padding: .5em;
   border-radius: .25em .25em 0em 0em;
-  box-shadow: 0 1px 2px 0 #000;
 }
 
 .title a {
@@ -97,6 +163,23 @@ img {
 
   #controls {
     flex-direction: column;
+    align-items: center;
+  }
+
+  #sub-controls {
+    margin-bottom: .5em;
+  }
+
+}
+
+@media screen and (max-width: 401px) {
+
+  #full-sub-label {
+    display: none;
+  }
+
+  #partial-sub-label {
+    display: inline;
   }
 
 }
