@@ -32,29 +32,42 @@ class App extends Component {
   }
 
   componentDidMount() {
+    // get initial data set
     this.reqData();
-    this.setState((state, props) => { return { pollRef: setInterval(() => this.reqData(), this.state.interval) }});
+    // begin polling interval, store reference for cancelling
+    this.setState((state, props) => { 
+      return { 
+        pollRef: setInterval(() => this.reqData(), this.state.interval)
+      }
+    });
   }
 
+  // make request for data set
   reqData(url) {
+    // declarations
     let fetchUrl, req;
+    // use url parameter if present, else use default url
     url ? fetchUrl = url : fetchUrl = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
     // console.log('fetchUrl:\n', fetchUrl); // DEBUG: log req url
+    // instantiate Request object with url
     req = new Request(fetchUrl);
+    // fetch Request
     fetch(req)
-    .then((fulfilled) => { return fulfilled.json() }, (rejected) => {
-      console.log('fetch rejected:\n', ( rejected.toString() )); // is 'TypeError: Failed to fetch'
-      // let error = rejected.toString();
-      this.setState((state, props) => { return { displayTitles: 'error: invalid subreddit, fetch rejected by browser, or reddit is down.'}});
-      // this.setState((state, props) => { return { displayTitles: error}});
-    })
-    .then((res) => { res ? this.handleRes(res) : console.log('falsy response:\n', res) })
-    .catch((err) => console.log('fetch error:\n', err));
+    .then((res) => { return res.json(); })
+    .then((resBodyJSON) => this.handleRes(resBodyJSON))
+    .catch((err) => {
+      // handle fetch exception
+      console.log('fetch error:\n', err); // DEBUG: log exception
+      // display error
+      this.setState((state, props) => { return { displayTitles: `error: fetch error, check console for details.\n${err}` } });
+      // NOTE: "TypeError: Failed to fetch" seems to be caused by handleRes() throwing an error when testing for res.error
+    });
   }
 
   handleRes(res) {
-    // console.log('server response:\n', res); // DEBUG: log response from reddit
-    if (res.error) {
+    console.log('server response:\n', res); // DEBUG: log response from reddit
+    if (res === null || res.error) {
+      clearInterval(this.state.pollRef);
       this.setState((state, props) => { return { displayTitles: `${res.error}: ${res.message}` }});
     } else {
       this.setState((state, props) => {
@@ -170,8 +183,14 @@ class App extends Component {
     return list.sort((a, b) => { return b.props.children[1].props.children[0].props.children[2].props.children.props.children[0] - a.props.children[1].props.children[0].props.children[2].props.children.props.children[0]})
   }
 
+  // TODO: set message when all posts are filtered out
   filterListItems() {
     let filteredList = this.state.allTitles.filter((title) => { return title.props.children[1].props.children[0].props.children[1].props.children.props.children[1] < this.state.maxAge });
+    // console.log(filteredList.length);
+    if (filteredList.length === 0) {
+      // TODO: add buttons to alter the data set, maybe something like top/?sort=top&t=week
+      filteredList = `0/${this.state.allTitles.length} posts with age under ${this.state.maxAge} hours.\ntry increasing max age.\n`;
+    } 
     this.setState((state, props) => { return { displayTitles: filteredList }});
     // this.setState((state, props) => { return { displayTitles: filteredList }}, () => console.log('post filter state:\n', this.state, `\nstate.displayTitles.length: ${ this.state.displayTitles.length }`));
   }
