@@ -43,33 +43,55 @@ class App extends Component {
   }
 
   // make request for data set
-  reqData(url) {
+  // TODO: sanitize argued url? check to see if polling actually needs to be stopped or if it is stopped elsewhere.
+  reqData(reqUrl) {
     // declarations
-    let fetchUrl, req;
-    // use url parameter if present, else use default url
-    url ? fetchUrl = url : fetchUrl = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
-    // console.log('fetchUrl:\n', fetchUrl); // DEBUG: log req url
-    // instantiate Request object with url
-    req = new Request(fetchUrl);
-    // fetch Request
+    let url, req;
+    // use reqUrl argument if present, else use default url
+    reqUrl ? url = reqUrl : url = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
+    // console.log('url:\n', url); // DEBUG: log req url
+    // instantiate Request
+    req = new Request(url, { method: 'GET', mode: 'cors', redirect: 'error' });
+    // request data with fetch
     fetch(req)
-    .then((res) => { return res.json(); })
-    .then((resBodyJSON) => this.handleRes(resBodyJSON))
-    .catch((err) => {
-      // handle fetch exception
-      console.log('fetch error:\n', err); // DEBUG: log exception
+    .then((res) => { 
+      if (res.ok) {
+        // handle valid response, return res.body as json for use in handleRes
+        return res.json();
+      } else {
+        // stop polling
+        clearInterval(this.state.pollRef);
+        // handle invalid response
+        console.log('network error:\n', res); // LOG: response object
+        // display error
+        this.setState((state, props) => { return { displayTitles: `error: response from "${res.url}" was "${res.status}: ${res.statusText}".` }});
+        // return null for use in handleRes
+        return null;
+      }
+    }, (rej) => {
+      // stop polling
+      clearInterval(this.state.pollRef);
+      // handle fetch rejection
+      console.log('fetch rejected:\n', rej); // LOG: rejection object
       // display error
-      this.setState((state, props) => { return { displayTitles: `error: fetch error, check console for details.\n${err}` } });
-      // NOTE: "TypeError: Failed to fetch" seems to be caused by handleRes() throwing an error when testing for res.error
+      this.setState((state, props) => { return { displayTitles: `error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.` }});
+      // call handleRes with null
+      return null;
+    })
+    .then((resJSON) => this.handleRes(resJSON)) // call handleRes with json data or null
+    .catch((e) => {
+      // stop polling
+      clearInterval(this.state.pollRef);
+      // handle fetch exception
+      console.log('fetch exception:\n', e); // LOG: exception object
+      // display error
+      this.setState((state, props) => { return { displayTitles: `error: fetch exception, check console for details.` } });
     });
   }
 
   handleRes(res) {
     console.log('server response:\n', res); // DEBUG: log response from reddit
-    if (res === null || res.error) {
-      clearInterval(this.state.pollRef);
-      this.setState((state, props) => { return { displayTitles: `${res.error}: ${res.message}` }});
-    } else {
+    if (res) {
       this.setState((state, props) => {
         return {
           fetchCount: state.fetchCount + 1,
@@ -86,8 +108,12 @@ class App extends Component {
           }, () => this.parseListings());
         };
       });
-    }
-    
+    } else {
+      // display error: 
+      if (res !== null) {
+        this.setState((state, props) => { return { displayTitles: `error: handleRes passed non-null, falsy argument.` }});
+      }
+    };
   }
 
   parseListings() {
