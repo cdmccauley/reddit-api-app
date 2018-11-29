@@ -18,41 +18,104 @@ class App extends Component {
       pollRef: null,
     }
 
-    this.reqData = this.reqData.bind(this);
-    this.handleRes = this.handleRes.bind(this);
+    this.componentDidMount = this.componentDidMount.bind(this);
+    this.displayErrorMsg = this.displayErrorMsg.bind(this);
+    // this.reqData = this.reqData.bind(this);
+    this.tempReqData = this.tempReqData.bind(this);
+    this.createReq = this.createReq.bind(this);
+    this.validateUrl = this.validateUrl.bind(this);
+    this.sendReq = this.sendReq.bind(this);
+    this.validateRes = this.validateRes.bind(this);
+    this.assignResData = this.assignResData.bind(this);
+    this.updateReqSettings = this.updateReqSettings.bind(this);
+    this.evaluateReqSettings = this.evaluateReqSettings.bind(this);
     this.parseListings = this.parseListings.bind(this);
     this.getListItems = this.getListItems.bind(this);
-
     this.sortListItems = this.sortListItems.bind(this);
     this.filterListItems = this.filterListItems.bind(this);
-
     this.handleSubmit = this.handleSubmit.bind(this);
-
-    this.componentDidMount = this.componentDidMount.bind(this);
   }
 
   componentDidMount() {
     // get initial data set
-    this.reqData();
+    // this.reqData();
+    this.tempReqData();
     // begin polling interval, store reference for cancelling
-    this.setState((state, props) => { 
-      return { 
-        pollRef: setInterval(() => this.reqData(), this.state.interval)
-      }
-    });
+    // this.setState((state, props) => { return { pollRef: setInterval(() => this.reqData(), this.state.interval) } });
+    this.setState((state, props) => { return { pollRef: setInterval(() => this.tempReqData(), this.state.interval) } });
+  }
+
+  // TODO: validate arg, use generic if invalid
+  displayErrorMsg(message) {
+    this.setState((state, props) => { return { displayTitles: message }});
   }
 
   // make request for data set
   // TODO: sanitize argued url? check to see if polling actually needs to be stopped or if it is stopped elsewhere.
-  reqData(reqUrl) {
-    // declarations
-    let url, req;
-    // use reqUrl argument if present, else use default url
-    reqUrl ? url = reqUrl : url = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
-    // console.log('url:\n', url); // DEBUG: log req url
-    // instantiate Request
-    req = new Request(url, { method: 'GET', mode: 'cors', redirect: 'error' });
-    // request data with fetch
+  // CANDIDATES: setup req, fetch req, create req error handlers
+  // reqData(reqUrl) {
+  //   // declarations
+  //   let url, req;
+  //   // use reqUrl argument if present, else use default url
+  //   reqUrl ? url = reqUrl : url = `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
+  //   // console.log('url:\n', url); // DEBUG: log req url
+  //   // instantiate Request
+  //   req = new Request(url, { method: 'GET', mode: 'cors', redirect: 'error' });
+  //   // request data with fetch
+  //   fetch(req)
+  //   .then((res) => { 
+  //     if (res.ok) {
+  //       // handle valid response, return res.body as json for use in handleRes
+  //       return res.json();
+  //     } else {
+  //       // stop polling
+  //       clearInterval(this.state.pollRef);
+  //       // handle invalid response
+  //       console.log('network error:\n', res); // LOG: response object
+  //       // display error
+  //       this.setState((state, props) => { return { displayTitles: `error: response from "${res.url}" was "${res.status}: ${res.statusText}".` }});
+  //       // return null for use in handleRes
+  //       return null;
+  //     }
+  //   }, (rej) => {
+  //     // stop polling
+  //     clearInterval(this.state.pollRef);
+  //     // handle fetch rejection
+  //     console.log('fetch rejected:\n', rej); // LOG: rejection object
+  //     // display error
+  //     this.setState((state, props) => { return { displayTitles: `error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.` }});
+  //     // call handleRes with null
+  //     return null;
+  //   })
+  //   .then((resJSON) => this.validateRes(resJSON)) // call handleRes with json data or null
+  //   .catch((e) => {
+  //     // stop polling
+  //     clearInterval(this.state.pollRef);
+  //     // handle fetch exception
+  //     console.log('fetch exception:\n', e); // LOG: exception object
+  //     // display error
+  //     this.setState((state, props) => { return { displayTitles: `error: fetch exception, check console for details.` } });
+  //   });
+  // }
+
+  tempReqData(url) {
+    this.sendReq(this.createReq(url));
+  }
+
+  createReq(url) {
+    return new Request(this.validateUrl(url));
+  }
+
+  // TODO: validate further than prevent falsy arg
+  validateUrl(url) {
+    if (url) {
+      return url;
+    } else {
+      return `https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100`;
+    }
+  }
+
+  sendReq(req) {
     fetch(req)
     .then((res) => { 
       if (res.ok) {
@@ -78,7 +141,7 @@ class App extends Component {
       // call handleRes with null
       return null;
     })
-    .then((resJSON) => this.handleRes(resJSON)) // call handleRes with json data or null
+    .then((resJSON) => this.validateRes(resJSON)) // call handleRes with json data or null
     .catch((e) => {
       // stop polling
       clearInterval(this.state.pollRef);
@@ -89,30 +152,32 @@ class App extends Component {
     });
   }
 
-  handleRes(res) {
+  // validate response object
+  validateRes(res) {
     console.log('server response:\n', res); // DEBUG: log response from reddit
     if (res) {
-      this.setState((state, props) => {
-        return {
-          fetchCount: state.fetchCount + 1,
-          listings: [...state.listings, res]
-        }
-      }, () => {
-        if (this.state.fetchCount < this.state.fetchLimit && this.state.listings[+this.state.fetchCount - 1].data.after) {
-          this.reqData(`https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100&after=${ this.state.listings[this.state.fetchCount - 1].data.after }`);
-        } else {
-          this.setState((state, props) => {
-            return {
-              fetchCount: 0
-            }
-          }, () => this.parseListings());
-        };
-      });
+      this.assignResData(res);
+    } else if (res !== null) {
+      this.displayErrorMsg('error: validateRes passed non-null, falsy argument. check console for more details.');
+    }
+  }
+
+  // assign response data to state
+  assignResData(res) {
+    this.setState((state, props) => { return { listings: [...state.listings, res] } }, () => this.updateReqSettings());
+  }
+
+  // update request counter
+  updateReqSettings() {
+    this.setState((state, props) => { return { fetchCount: state.fetchCount + 1 } }, () => this.evaluateReqSettings());
+  }
+
+  // evaluate request settings to determine if another request is required or if data should be parsed
+  evaluateReqSettings() {
+    if (this.state.fetchCount < this.state.fetchLimit && this.state.listings[+this.state.fetchCount - 1].data.after) {
+      this.tempReqData(`https://old.reddit.com/r/${ this.state.subreddit }.json?limit=100&after=${ this.state.listings[this.state.fetchCount - 1].data.after }`);
     } else {
-      // display error: 
-      if (res !== null) {
-        this.setState((state, props) => { return { displayTitles: `error: handleRes passed non-null, falsy argument.` }});
-      }
+      this.setState((state, props) => { return { fetchCount: 0 } }, () => this.parseListings());
     };
   }
 
@@ -209,7 +274,6 @@ class App extends Component {
     return list.sort((a, b) => { return b.props.children[1].props.children[0].props.children[2].props.children.props.children[0] - a.props.children[1].props.children[0].props.children[2].props.children.props.children[0]})
   }
 
-  // TODO: set message when all posts are filtered out
   filterListItems() {
     let filteredList = this.state.allTitles.filter((title) => { return title.props.children[1].props.children[0].props.children[1].props.children.props.children[1] < this.state.maxAge });
     // console.log(filteredList.length);
