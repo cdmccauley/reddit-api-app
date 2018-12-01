@@ -84,7 +84,7 @@ li {
   display: none;
 }
 
-#sub-value {
+.sub-value {
   width: 150px;
   color: white;
   font-family: 'Ubuntu', sans-serif;

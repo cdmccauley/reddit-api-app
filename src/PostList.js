@@ -21,13 +21,18 @@ class PostList extends Component {
     this.componentDidMount = this.componentDidMount.bind(this);
     this.displayErrorMsg = this.displayErrorMsg.bind(this);
     this.reqData = this.reqData.bind(this);
-    this.createReq = this.createReq.bind(this);
     this.validateUrl = this.validateUrl.bind(this);
+    this.createReq = this.createReq.bind(this);
     this.sendReq = this.sendReq.bind(this);
-    this.validateRes = this.validateRes.bind(this);
+    this.evaluateRes = this.evaluateRes.bind(this);
+    this.handleAccepted = this.handleAccepted.bind(this);
+    this.handleRejected = this.handleRejected.bind(this);
+    this.handleReqException = this.handleReqException.bind(this);
     this.assignResData = this.assignResData.bind(this);
     this.updateReqSettings = this.updateReqSettings.bind(this);
     this.evaluateReqSettings = this.evaluateReqSettings.bind(this);
+    this.getThumbProp = this.getThumbProp.bind(this);
+    this.getCreatedProp = this.getCreatedProp.bind(this);
     this.parseData = this.parseData.bind(this);
     this.getPostAge = this.getPostAge.bind(this);
     this.getPostUpsAvg = this.getPostUpsAvg.bind(this);
@@ -48,19 +53,18 @@ class PostList extends Component {
     this.setState((state, props) => { return { pollRef: setInterval(() => this.reqData(), this.state.pollInterval) } });
   }
 
+  // assign error message to component display
   // TODO: validate arg, use generic if invalid
   displayErrorMsg(message) {
     this.setState((state, props) => { return { componentDisplay: message }});
   }
 
+  // request data set
   reqData(url) {
     this.sendReq(this.createReq(url));
   }
 
-  createReq(url) {
-    return new Request(this.validateUrl(url));
-  }
-
+  // validate url for request
   // TODO: validate further than prevent falsy arg
   validateUrl(url) {
     if (url) {
@@ -70,60 +74,77 @@ class PostList extends Component {
     }
   }
 
-  // TODO: extract error handlers
-  sendReq(req) {
-    fetch(req)
-    .then((res) => { 
-      if (res.ok) {
-        // handle valid response, return res.body as json for use in handleRes
-        return res.json();
-      } else {
-        // stop polling
-        clearInterval(this.state.pollRef);
-        // handle invalid response
-        console.log('network error:\n', res); // LOG: response object
-        // display error
-        this.setState((state, props) => { return { componentDisplay: `error: response from "${res.url}" was "${res.status}: ${res.statusText}".` }});
-        // return null for use in handleRes
-        return null;
-      }
-    }, (rej) => {
-      // stop polling
-      clearInterval(this.state.pollRef);
-      // handle fetch rejection
-      console.log('fetch rejected:\n', rej); // LOG: rejection object
-      // display error
-      this.setState((state, props) => { return { componentDisplay: `error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.` }});
-      // call handleRes with null
-      return null;
-    })
-    .then((resJSON) => this.validateRes(resJSON)) // call handleRes with json data or null
-    .catch((e) => {
-      // stop polling
-      clearInterval(this.state.pollRef);
-      // handle fetch exception
-      console.log('fetch exception:\n', e); // LOG: exception object
-      // display error
-      this.setState((state, props) => { return { componentDisplay: `error: fetch exception, check console for details.` } });
-    });
+  // create request from url
+  // TODO: add object argument for settings
+  createReq(url) {
+    return new Request(this.validateUrl(url));
   }
 
-  // validate response object
-  validateRes(res) {
-    console.log('server response:\n', res); // DEBUG: log response from reddit
-    if (res) {
-      this.assignResData(res);
-    } else if (res !== null) {
-      this.displayErrorMsg('error: validateRes passed non-null, falsy argument. check console for more details.');
+  // handle sendReq fetch response
+  handleAccepted(res) {
+    if (res.ok) {
+      // handle valid response, return res.body as json for use in handleRes
+      return res.json();
+    } else {
+      // stop polling
+      clearInterval(this.state.pollRef);
+      // handle invalid response
+      console.log('network error:\n', res); // LOG: response object
+      // display error
+      this.setState((state, props) => { return { componentDisplay: `error: response from "${res.url}" was "${res.status}: ${res.statusText}".` }});
+      // return null for use in handleRes
+      return null;
     }
   }
 
-  // assign response data to state
+  // handle sendReq fetch rejection
+  handleRejected(rej) {
+    // stop polling
+    clearInterval(this.state.pollRef);
+    // handle fetch rejection
+    console.log('fetch rejected:\n', rej); // LOG: rejection object
+    // display error
+    this.setState((state, props) => { return { componentDisplay: `error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.` }});
+    // call handleRes with null
+    return null;
+  }
+
+  // handle sendReq fetch exception
+  handleReqException(e) {
+    // stop polling
+    clearInterval(this.state.pollRef);
+    // handle fetch exception
+    console.log('fetch exception:\n', e); // LOG: exception object
+    // display error
+    this.setState((state, props) => { return { componentDisplay: `error: fetch exception, check console for details.` } });
+  }
+
+  // send a request
+  sendReq(req) {
+    fetch(req)
+    .then((accepted) => this.handleAccepted(accepted), (rejected) => this.handleRejected(rejected))
+    .then((res) => this.evaluateRes(res))
+    .catch((e) => this.handleReqException(e));
+  }
+
+  // evaluate sendReq res
+  evaluateRes(res) {
+    console.log('server response:\n', res); // DEBUG: log response from reddit
+    if (res) {
+      // res should contain valid data, assign to state
+      this.assignResData(res);
+    } else if (res !== null) {
+      // unexpected behavior that will cause errors, display message
+      this.displayErrorMsg('error: evaluateRes passed non-null, falsy argument. check console for more details.');
+    }
+  }
+
+  // assign response data to state, then update counter
   assignResData(res) {
     this.setState((state, props) => { return { listings: [...state.listings, res] } }, () => this.updateReqSettings());
   }
 
-  // update request counter
+  // update request counter, then evaluate settings
   updateReqSettings() {
     this.setState((state, props) => { return { fetchCount: state.fetchCount + 1 } }, () => this.evaluateReqSettings());
   }
@@ -137,22 +158,40 @@ class PostList extends Component {
     };
   }
 
-  // TODO: getThumbProp, getCreatedProp
+  // return valid url for thumb img
+  // TODO: investigate response data for patterns, different subs provide different values for this prop
+  getThumbProp(thumb) {
+    return thumb.substring(0, 4) !== 'http' ? `https://via.placeholder.com/140x90/333/FFF/?text=${ thumb }` : thumb;
+  }
+
+  // return converted time
+  getCreatedProp(created_utc) {
+    return created_utc * 1000;
+  }
+
+  // parse response data
+  // TODO: instead of storing posts then creating elements on the fly, store elements and update them on the fly?
   parseData() {
-    let combinedArr = this.state.posts;
-    let tempPostsArr = [];
+    // declarations
+    let knownPosts = this.state.posts;
+    let unknownPosts = [];
+    // look at each listing
     Object.values(this.state.listings).forEach((listing) => {
+      // look at each post in listing
       Object.values(listing.data.children).forEach((child) => {
         if (Object.keys(this.state.posts).includes(child.data.id)) {
-          if (combinedArr[child.data.id].ups !== child.data.ups) {
-            combinedArr[child.data.id].ups = child.data.ups;
-            combinedArr[child.data.id].score = child.data.score;
+          // post is currently in state
+          if (knownPosts[child.data.id].ups !== child.data.ups) {
+            // update post values
+            knownPosts[child.data.id].ups = child.data.ups;
+            knownPosts[child.data.id].score = child.data.score;
           }
         } else {
-          tempPostsArr[child.data.id] = {
+          // post is not currently in state, assign relevant data to object
+          unknownPosts[child.data.id] = {
             id: child.data.id,
             name: child.data.name,
-            created: child.data.created_utc * 1000,
+            created: this.getCreatedProp(child.data.created_utc),
             title: child.data.title,
             author: child.data.author,
             subreddit: child.data.subreddit_name_prefixed,
@@ -161,32 +200,37 @@ class PostList extends Component {
             score: child.data.score,
             domain: child.data.domain,
             url: child.data.url,
-            thumb: child.data.thumbnail.substring(0, 4) !== 'http' ? `https://via.placeholder.com/140x90/333/FFF/?text=${ child.data.thumbnail }` : child.data.thumbnail,
+            thumb: this.getThumbProp(child.data.thumbnail),
             thumbHeight: child.data.thumbnail_height,
             thumbWidth: child.data.thumbnail_width,
           };
         }
       })
     });
-    Object.keys(tempPostsArr).forEach((key) => {
-      combinedArr[key] = tempPostsArr[key];
+    // combine post arrays
+    Object.keys(unknownPosts).forEach((key) => {
+      knownPosts[key] = unknownPosts[key];
     });
+    // store posts then make list items from them
     this.setState((state, props) => {
       return {
         listings: [],
-        posts: combinedArr,
+        posts: knownPosts,
       }
     }, () => this.getListItems());
   }
 
+  // return post age as decimal representation of hours
   getPostAge(created, now) {
     return Math.round(((now - created) / 3600000) * 100) / 100;
   }
 
+  // return decimal representation of average ups per hour
   getPostUpsAvg(created, now, ups) {
     return Math.round(((Math.round(ups / (Math.round(((now - created) / 3600000) * 100) / 100))) / 60) * 100) / 100;
   }
 
+  // return post title div
   getPostTitleElement(path, title) {
     return (
       <div className='title'>
@@ -195,6 +239,7 @@ class PostList extends Component {
     );
   }
 
+  // return post details div
   getPostDetailsElement(ups, created, now, url, img, title) {
     return (
       <div className='details'>
@@ -208,6 +253,7 @@ class PostList extends Component {
     );
   }
 
+  // return post source div
   // TODO: validate component sub value more thoroughly
   getPostSourceElement(subreddit, domain) {
     if (this.state.subreddit.substring(0, 3) === 'all') {
@@ -226,6 +272,7 @@ class PostList extends Component {
     }
   }
 
+  // return post list item
   getPostElement(post, now) {
     return (
       <li key={ post.id } >
@@ -236,6 +283,7 @@ class PostList extends Component {
     );
   }
 
+  // set state with list item elements
   getListItems() {
     let now = new Date().getTime();
     let listItems = Object.values(this.state.posts).map((post) => this.getPostElement(post, now));
@@ -243,10 +291,12 @@ class PostList extends Component {
     this.setState((state, props) => { return { allListItems: listItems } }, () => this.filterListItems());
   }
 
+  // sort list items by ups average
   sortListItems(list) {
     return list.sort((a, b) => { return b.props.children[1].props.children[0].props.children[2].props.children.props.children[0] - a.props.children[1].props.children[0].props.children[2].props.children.props.children[0]})
   }
 
+  // filter list items by age
   // TODO: add buttons to alter the data set, maybe something like top/?sort=top&t=week
   filterListItems() {
     let filteredList = this.state.allListItems.filter((title) => { return title.props.children[1].props.children[0].props.children[1].props.children.props.children[1] < this.state.maxAge });
@@ -256,6 +306,7 @@ class PostList extends Component {
     this.setState((state, props) => { return { componentDisplay: filteredList }});
   }
 
+  // handle component submit events
   handleSubmit(event) {
     event.preventDefault();
     if (event.type === 'submit') {
@@ -292,7 +343,7 @@ class PostList extends Component {
               <div id='sub-controls'>
               <form onSubmit={ this.handleSubmit }>
                 <label style={{flexShrink: '0'}} htmlFor={`sub-value${ this.props.listNum }`}><span id='full-sub-label'>subreddit: r/</span><span id='partial-sub-label'>r/</span></label>
-                <input style={{flexGrow: '0'}} type='text' id={`sub-value${ this.props.listNum }`} placeholder={ this.state.subreddit }></input>
+                <input style={{flexGrow: '0'}} type='text' id={`sub-value${ this.props.listNum }`} className='sub-value' placeholder={ this.state.subreddit }></input>
                 <input style={{flexGrow: '0'}} type='submit' id='sub-submit' value='submit' />
               </form>
               </div>
