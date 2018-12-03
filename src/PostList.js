@@ -91,7 +91,7 @@ class PostList extends Component {
       // handle invalid response
       console.log('network error:\n', res); // LOG: response object
       // display error
-      this.setState((state, props) => { return { componentDisplay: `error: response from "${res.url}" was "${res.status}: ${res.statusText}".` }});
+      this.displayErrorMsg(`error: response from "${res.url}" was "${res.status}: ${res.statusText}".`);
       // return null for use in handleRes
       return null;
     }
@@ -104,7 +104,7 @@ class PostList extends Component {
     // handle fetch rejection
     console.log('fetch rejected:\n', rej); // LOG: rejection object
     // display error
-    this.setState((state, props) => { return { componentDisplay: `error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.` }});
+    this.displayErrorMsg(`error: request rejected, invalid search url or request blocked by browser. check search url, browser settings, or console for more details.`);
     // call handleRes with null
     return null;
   }
@@ -116,7 +116,7 @@ class PostList extends Component {
     // handle fetch exception
     console.log('fetch exception:\n', e); // LOG: exception object
     // display error
-    this.setState((state, props) => { return { componentDisplay: `error: fetch exception, check console for details.` } });
+    this.displayErrorMsg(`error: fetch exception, check console for details.`);
   }
 
   // send a request
@@ -135,7 +135,7 @@ class PostList extends Component {
       this.assignResData(res);
     } else if (res !== null) {
       // unexpected behavior that will cause errors, display message
-      this.displayErrorMsg('error: evaluateRes passed non-null, falsy argument. check console for more details.');
+      this.displayErrorMsg(`error: evaluateRes passed non-null, falsy argument. check console for more details.`);
     }
   }
 
@@ -297,7 +297,7 @@ class PostList extends Component {
   }
 
   // filter list items by age
-  // TODO: add buttons to alter the data set, maybe something like top/?sort=top&t=week
+  // TODO: add buttons to alter the data set, maybe something like top/?sort=top&t=week, maybe use displayErrorMsg instead of direct set
   filterListItems() {
     let filteredList = this.state.allListItems.filter((title) => { return title.props.children[1].props.children[0].props.children[1].props.children.props.children[1] < this.state.maxAge });
     if (filteredList.length === 0) {

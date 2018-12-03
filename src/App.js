@@ -7,12 +7,7 @@ class App extends Component {
 
   render() {
     return (
-      <React.Fragment>
-        <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'flex-start' }}>
-          <PostList listNum={ 1 } />
-          <PostList listNum={ 2 } />
-        </div>
-      </React.Fragment>
+      <PostList listNum={ 1 } />
     );
   }
 }
